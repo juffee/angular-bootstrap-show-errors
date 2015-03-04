@@ -4,8 +4,8 @@
   showErrorsModule = angular.module('ui.bootstrap.showErrors', []);
 
   showErrorsModule.directive('showErrors', [
-    '$timeout', 'showErrorsConfig', '$interpolate', function($timeout, showErrorsConfig, $interpolate) {
-      var getShowSuccess, getTrigger, linkFn, changeTooltipMsg;
+    '$timeout', 'showErrorsConfig', '$interpolate','$compile', function($timeout, showErrorsConfig, $interpolate, $compile) {
+      var getShowSuccess, getShowTooltip, getTrigger, linkFn, changeTooltipMsg;
       getTrigger = function(options) {
         var trigger;
         trigger = showErrorsConfig.trigger;
@@ -22,19 +22,46 @@
         }
         return showSuccess;
       };
-      changeTooltipMsg = function(msg){
+      getShowTooltip = function(options) {
+        var showTooltip;
+        showTooltip = showErrorsConfig.showTooltip;        
+        if (options && (options.showTooltip != null)) {
+          showTooltip = options.showTooltip;
+        }
 
+        return showTooltip;
+      };
+      getValidationMessages = function(options){        
+        var validationMessages 
+        validationMessages = showErrorsConfig.validationMessages;
+        if(options && (options.validationMessages != null)) {
+          validationMessages = options.validationMessages;
+        }        
+        return validationMessages;
+      };
+      getTooltipMsg = function(errors, validationMessages){
+        //TODO: How do you remove validationMessages in the parameter? Or do you have to?
+        var msg = "";
+        for (var prop in errors) {          
+          if(errors[prop] == true){
+            msg = msg + validationMessages[prop];
+          }          
+        }
+        return msg;
       };
       linkFn = function(scope, el, attrs, formCtrl) {
-        var blurred, inputEl, inputName, inputNgEl, options, showSuccess, toggleClasses, trigger;
+        var blurred, inputEl, inputName, inputNgEl, options, showSuccess, toggleClasses, trigger, showTooltip, validationMessages;
         blurred = false;
         options = scope.$eval(attrs.showErrors);
-        showSuccess = getShowSuccess(options);        
-        // hasTooltip = attrs.tooltip;
+        showSuccess = getShowSuccess(options);
+        showTooltip = getShowTooltip(options);
+        validationMessages = getValidationMessages(options);
+        
         trigger = getTrigger(options);
         inputEl = el[0].querySelector('.form-control[name]');
         inputNgEl = angular.element(inputEl);
         inputName = $interpolate(inputNgEl.attr('name') || '')(scope);
+
         if (!inputName) {
           throw "show-errors element has no child input elements with a 'name' attribute and a 'form-control' class";
         }
@@ -60,22 +87,38 @@
             return blurred = false;
           }, 0, false);
         });
+
+        /** 
+          * If no showTooltip option is present show tooltip
+          * attr tooltip will be added to the field with the value of the validation message stored in each form field
+          */        
+        if(attrs['showErrors'].indexOf('showTooltip') === -1){            
+          inputNgEl.attr('tooltip','{{'+formCtrl.$name +'.'+ inputName +'.validationMessage}}');          
+        }
+        // References: http://stackoverflow.com/questions/19224028/add-directives-from-directive-in-angularjs        
+        $compile(el,null,1000)(scope);
+
         return toggleClasses = function(invalid) {
           el.toggleClass('has-error', invalid);
-          // console.log("HAS tooltip",hasTooltip)
-          // if (hasTooltip) {
-          //   console.log("HAS tooltipASFSASF",hasTooltip)
-          // }
           if (showSuccess) {
             return el.toggleClass('has-success', !invalid);
           }
+          if(showTooltip){                        
+            var msg = getTooltipMsg( formCtrl[inputName].$error, validationMessages );          
+            formCtrl[inputName].validationMessage = $interpolate(msg || '')(scope);
+          }           
         };
       };
       return {
-        restrict: 'A',
+        restrict: 'A',        
         require: '^form',
+        terminal: true,
+        priority: 1000,
         compile: function(elem, attrs) {
-          if (attrs['showErrors'].indexOf('skipFormGroupCheck') === -1) {
+          var inputEl = elem[0].querySelector('.form-control[name]'),
+              inputNgEl = angular.element(inputEl);
+          
+          if (attrs['showErrors'].indexOf('skipFormGroupCheck') === -1) {            
             if (!(elem.hasClass('form-group') || elem.hasClass('input-group'))) {
               throw "show-errors element does not have the 'form-group' or 'input-group' class";
             }
@@ -87,21 +130,39 @@
   ]);
 
   showErrorsModule.provider('showErrorsConfig', function() {
-    var _showSuccess, _trigger;
+    var _showSuccess, _showTooltip, _trigger;
     _showSuccess = false;
+    _showTooltip = true;
     _trigger = 'blur';
+    _validationMessages = {
+      'required': 'Required. ',
+      'pattern': 'Invalid. ',
+      'email': 'Invalid Email. ',
+      'max': 'Too large. ',
+      'min': 'Too small. ',
+      'duplicate': 'Must be unique',
+      'mongoose': 'Hmm. Something went wrong :('
+    }
     this.showSuccess = function(showSuccess) {
       return _showSuccess = showSuccess;
     };
+    this.showTooltip = function(showTooltip) {
+      return _showTooltip = showTooltip;
+    }
+    this.validationMessages = function(validationMessages) {
+      return _.assign(_validationMessages, validationMessages);
+    }
     this.trigger = function(trigger) {
       return _trigger = trigger;
     };
     this.$get = function() {
       return {
         showSuccess: _showSuccess,
-        trigger: _trigger
+        showTooltip: _showTooltip,
+        trigger: _trigger,
+        validationMessages: _validationMessages
       };
-    };
+    };    
   });
 
 }).call(this);
