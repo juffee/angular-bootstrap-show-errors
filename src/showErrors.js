@@ -35,7 +35,7 @@
         var validationMessages 
         validationMessages = showErrorsConfig.validationMessages;
         if(options && (options.validationMessages != null)) {
-          validationMessages = options.validationMessages;
+          validationMessages = _.assign(options.validationMessages,validationMessages);
         }        
         return validationMessages;
       };
@@ -45,8 +45,8 @@
         for (var prop in errors) {          
           if(errors[prop] == true){
             msg = msg + validationMessages[prop];
-          }          
-        }
+          }
+        }        
         return msg;
       };
       linkFn = function(scope, el, attrs, formCtrl) {
@@ -98,7 +98,7 @@
         // References: http://stackoverflow.com/questions/19224028/add-directives-from-directive-in-angularjs        
         $compile(el,null,1000)(scope);
 
-        return toggleClasses = function(invalid) {
+        return toggleClasses = function(invalid) {          
           el.toggleClass('has-error', invalid);
           if (showSuccess) {
             return el.toggleClass('has-success', !invalid);
@@ -118,7 +118,7 @@
           var inputEl = elem[0].querySelector('.form-control[name]'),
               inputNgEl = angular.element(inputEl);
           
-          if (attrs['showErrors'].indexOf('skipFormGroupCheck') === -1) {            
+          if (attrs['showErrors'].indexOf('skipFormGroupCheck') === -1) {
             if (!(elem.hasClass('form-group') || elem.hasClass('input-group'))) {
               throw "show-errors element does not have the 'form-group' or 'input-group' class";
             }
@@ -140,8 +140,10 @@
       'email': 'Invalid Email. ',
       'max': 'Too large. ',
       'min': 'Too small. ',
-      'duplicate': 'Must be unique',
-      'mongoose': 'Hmm. Something went wrong :('
+      'maxlength': 'Too long. ',
+      'minlength': 'Too short. ',
+      'unique': "Sorry this must be unique, duplicate found. ",
+      'mongoose': 'Hmm. Something went wrong :( '
     }
     this.showSuccess = function(showSuccess) {
       return _showSuccess = showSuccess;
